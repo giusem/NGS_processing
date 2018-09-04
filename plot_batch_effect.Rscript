@@ -1,0 +1,41 @@
+#from vivek
+
+#plot raw data to look for batch effects
+
+plotNormEffect <- function(dgelist, normfacs = NULL, 
+                         samples = c("GFPb", "Dis3a", "Dis3b"), refSample = "GFPa") {
+        
+    normfacs <- ifelse(is.null(normfacs), dgelist$samples$norm.factors, normfacs)
+        abundances <- aveLogCPM(dgelist)
+        adjc <- cpm(dgelist, log = TRUE)
+        colnames(adjc) <- samples
+
+        # plot ref sample vs all other samples
+        message("plotting the normalization effect")
+        sampnumber <- ncol(adjc) - 1
+        cols_toplot <- grep(refSample, samples, invert = TRUE)
+        n <- ceiling(sampnumber / 3)
+        par(cex.lab = 1.5, mfrow = c(n, 3))
+        lapply(cols_toplot, function(x) {
+            smoothScatter(
+                abundances,
+                adjc[, refSample] - adjc[, x],
+                ylim = c(-6, 6),
+                xlab = "Average abundance",
+                ylab = paste0("Log-ratio (", refSample, " vs ", x, ")")
+            )
+
+        abline(h = log2(normfacs[refSample] / normfacs[x]), col = "red")
+        })
+}
+
+
+library(edgeR)
+## create DGE object
+dge <- DGEList(counts = mycountMatrix, 
+               samples = c("GFPa", "GFPb", "Dis3a", "Dis3b"),
+               group = c("Wt", "Wt", "Dis3", "Dis3"))
+
+## plot all samples w.r.t reference sample from the dge object 
+## add your own norm factors
+plotNormEffect(dge, normfacs = myNormfacs)

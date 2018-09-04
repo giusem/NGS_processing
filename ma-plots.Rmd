@@ -1,0 +1,197 @@
+---
+title: "MA-plots for FLASH"
+author: "Giuseppe Semplicio"
+date: "11/22/2017"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+#get gene names
+geneNames = read.csv("/data/akhtar/group/Giuseppe/supplementary/biomart_gene_name/dm6_ensembl_release79_biomart.tsv", sep = "\t", header = F, stringsAsFactors = F)
+
+geneNames = geneNames[!duplicated(geneNames[,1]),]
+rownames(geneNames) = geneNames[,1]
+geneNames[,1] = NULL
+## make a dictionary
+gene_names_dic = geneNames[[1]]
+names(gene_names_dic) = rownames(geneNames)
+
+id_to_gene_name = function(ids) {
+  d = data.frame(IDs=ids, gene_names=NA)
+  d$gene_names = gene_names_dic[ as.character(d$IDs) ]
+  head(d)
+  
+  # some might be NAs; replace those by original ID
+  d[which(is.na(d$gene_names)),]$gene_names = as.character(d[which(is.na(d$gene_names)),]$IDs)
+  head(d)
+  return(d$gene_name)
+}
+
+# little search function to help find lines in fcountOutput
+searchfunction = function(target) {
+	target = as.character(substitute(target))
+	goal = fcountOutput[which(fcountOutput$gene_names == target),]
+	return(goal)
+}
+
+#load the count table
+fcountOutput = read.table("larva_FLASH_xlink_counts_per_gene", sep = "\t", header = TRUE)
+
+rownames(fcountOutput) = fcountOutput[,1]
+fcountOutput = fcountOutput[7:ncol(fcountOutput)]
+
+#add a column with human readable gene names
+fcountOutput$gene_names = id_to_gene_name(rownames(fcountOutput))
+
+colnames(fcountOutput)  = c("MLE_female", "MLE_male", "Msl2_female", "Msl2_male", "WOR_male", "WOR_female", "gene_names")
+
+#fcountOutput = fcountOutput[which(rowSums(fcountOutput[1:6])>10),]
+
+fcountOutput = fcountOutput[apply(fcountOutput[c(1:6)],1,function(z) !any(z<10)),]
+```
+
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#mle 
+
+#preparing for ma plotting as foldchange difference of males vs females
+M = log2(fcountOutput$MLE_male / fcountOutput$MLE_female)
+
+A = 0.5 * (log2(fcountOutput$MLE_male) + log2(fcountOutput$MLE_female))
+
+df = data.frame(A,M)
+
+colnames(df) = c("A", "M")
+
+rownames(df) = rownames(fcountOutput)
+
+df = df[which(!is.na(df$M)),]
+df = df[which(!is.na(df$A)),]
+
+df = df[which(is.finite(df$M)),]
+df = df[which(is.finite(df$A)),]
+
+df$gene_names = id_to_gene_name(rownames(df))
+
+df$highlight = rownames(df) %in% c("FBgn0019660", "FBgn0019661")
+
+rox2 = subset(df, rownames(df) == "FBgn0019660")
+rox1 = subset(df, rownames(df) == "FBgn0019661")
+#making the ma plot
+
+ggplot(df, aes(x = A, y = M)) +
+			 	geom_point(size = 1, alpha = 1, color = "black") +
+			 	geom_hline(color = "blue3", yintercept = 0) +
+				geom_point(data = rox2, colour = "red") +
+				geom_text(data=rox2, label = "roX2", color = "red") +
+				geom_point(data = rox1, colour = "red") +
+				geom_text(data=rox1, label = "roX1", color = "red") +
+				xlim(0,15) +
+				ylim(-7,7)
+				
+mle = df %>% arrange(desc(M,A))
+#write.table(mle, "maplot_mle_flash_malevsfemale_M_A_sorted.tsv", sep = "\t", quote = FALSE)
+```
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#msl2
+
+
+#preparing for ma plotting as foldchange difference of males vs females
+M = log2(fcountOutput$Msl2_male / fcountOutput$Msl2_female)
+
+A = 0.5 * (log2(fcountOutput$Msl2_male) + log2(fcountOutput$Msl2_female))
+
+df = data.frame(A,M)
+
+colnames(df) = c("A", "M")
+
+rownames(df) = rownames(fcountOutput)
+
+df = df[which(!is.na(df$M)),]
+df = df[which(!is.na(df$A)),]
+
+df = df[which(is.finite(df$M)),]
+df = df[which(is.finite(df$A)),]
+
+df$gene_names = id_to_gene_name(rownames(df))
+
+df$highlight = rownames(df) %in% c("FBgn0019660", "FBgn0019661")
+
+rox2 = subset(df, rownames(df) == "FBgn0019660")
+rox1 = subset(df, rownames(df) == "FBgn0019661")
+
+#making the ma plot
+
+ggplot(df, aes(x = A, y = M)) +
+			 	geom_point(size = 1, alpha = 1, color = "black") +
+			 	geom_hline(color = "blue3", yintercept = 0) +
+				geom_point(data = rox2, colour = "red") +
+				geom_text(data=rox2, label = "roX2", color = "red") +
+				geom_point(data = rox1, colour = "red") +
+				geom_text(data=rox1, label = "roX1", color = "red") +
+				xlim(0,15) +
+				ylim(-7,7)
+
+msl2 = df %>% arrange(desc(M,A))
+#write.table(msl2, "maplot_msl2_flash_malevsfemale_M_A_sorted.tsv", sep = "\t", quote = FALSE)
+```
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#wor
+
+#preparing for ma plotting as foldchange difference of males vs females
+M = log2(fcountOutput$WOR_male / fcountOutput$WOR_female)
+
+A = 0.5 * (log2(fcountOutput$WOR_male) + log2(fcountOutput$WOR_female))
+
+df = data.frame(A,M)
+
+colnames(df) = c("A", "M")
+
+rownames(df) = rownames(fcountOutput)
+
+df = df[which(!is.na(df$M)),]
+df = df[which(!is.na(df$A)),]
+
+df = df[which(is.finite(df$M)),]
+df = df[which(is.finite(df$A)),]
+
+df$gene_names = id_to_gene_name(rownames(df))
+
+df$highlight = rownames(df) %in% c("FBgn0019660", "FBgn0019661")
+
+rox2 = subset(df, rownames(df) == "FBgn0019660")
+rox1 = subset(df, rownames(df) == "FBgn0019661")
+
+
+#making the ma plot
+
+ggplot(df, aes(x = A, y = M)) +
+			 	geom_point(size = 1, alpha = 1, color = "black") +
+			 	geom_hline(color = "blue3", yintercept = 0) +
+				geom_point(data = rox2, colour = "red") +
+				geom_text(data=rox2, label = "roX2", color = "red") +
+				geom_point(data = rox1, colour = "red") +
+				geom_text(data=rox1, label = "roX1", color = "red") +
+				xlim(0,15) +
+				ylim(-7,7)
+
+wor = df %>% arrange(desc(M,A))
+#write.table(wor, "maplot_wor_flash_malevsfemale_M_A_sorted.tsv", sep = "\t", quote = FALSE)
+```
+
